@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PepaCash — Merchant Process Flow</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.0/dist/mermaid.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/panzoom@9.4.3/dist/panzoom.min.js"></script>
+<style>
+  :root {
+    --bg: #f6f8fb;
+    --panel: #ffffff;
+    --ink: #0f1b2d;
+    --ink-soft: #475569;
+    --line: #e2e8f0;
+    --brand: #0a3d62;
+    --brand-2: #1e88e5;
+    --accent: #ff8a00;
+    --ok: #16a34a;
+    --warn: #d97706;
+    --bad: #dc2626;
+    --website: #eef2ff;
+    --ops: #fff7ed;
+    --compliance: #ecfeff;
+    --setup: #f0fdf4;
+    --merchant: #fef3c7;
+    --internal: #f3e8ff;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+  header {
+    background: linear-gradient(135deg, #0a3d62 0%, #1e88e5 100%);
+    color: white; padding: 22px 28px; box-shadow: 0 2px 10px rgba(10,61,98,0.15);
+  }
+  header h1 { margin: 0 0 4px 0; font-size: 22px; letter-spacing: -0.2px; }
+  header p { margin: 0; opacity: 0.85; font-size: 13px; }
+  .container { display: grid; grid-template-columns: minmax(0,1fr) 380px; gap: 16px; padding: 16px; }
+  @media (max-width: 1100px) { .container { grid-template-columns: 1fr; } }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 1px 2px rgba(15,27,45,0.04); }
+  .toolbar { display: flex; gap: 8px; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .toolbar .title { font-weight: 600; color: var(--ink); margin-right: auto; }
+  button {
+    background: white; border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px;
+    cursor: pointer; font-size: 13px; color: var(--ink); transition: all 0.15s;
+  }
+  button:hover { background: var(--bg); border-color: var(--brand-2); }
+  button.primary { background: var(--brand); color: white; border-color: var(--brand); }
+  button.primary:hover { background: var(--brand-2); }
+  #diagram-wrap {
+    position: relative; height: calc(100vh - 180px); min-height: 600px;
+    overflow: hidden; background: #fafbfc;
+    touch-action: none;            /* let pinch & drag reach our handlers */
+    overscroll-behavior: contain;
+    cursor: grab;
+  }
+  #diagram-wrap.is-panning { cursor: grabbing; }
+  #diagram { width: 100%; height: 100%; transform-origin: 0 0; }
+  #diagram svg { display: block; max-width: none !important; height: auto !important; user-select: none; -webkit-user-select: none; }
+  .legend { padding: 12px 14px; display: flex; gap: 10px; flex-wrap: wrap; border-top: 1px solid var(--line); font-size: 12px; color: var(--ink-soft); background: #fafbfc; }
+  .legend .chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; border-radius: 999px; background: white; border: 1px solid var(--line); }
+  .legend .sw { width: 10px; height: 10px; border-radius: 3px; }
+
+  /* Narrative panel */
+  aside { display: flex; flex-direction: column; gap: 12px; max-height: calc(100vh - 116px); overflow: auto; }
+  aside .card { padding: 14px 16px; }
+  aside h2 { margin: 0 0 8px 0; font-size: 14px; color: var(--brand); letter-spacing: 0.3px; text-transform: uppercase; }
+  aside h3 { margin: 12px 0 6px 0; font-size: 13px; color: var(--ink); }
+  aside p, aside li { font-size: 13px; line-height: 1.55; color: var(--ink-soft); margin: 4px 0; }
+  aside ul { padding-left: 18px; margin: 6px 0; }
+  aside .tag { display: inline-block; background: var(--website); color: var(--brand); border-radius: 999px; padding: 1px 8px; font-size: 11px; font-weight: 600; margin-right: 4px; }
+  aside .tag.ops { background: var(--ops); color: #9a3412; }
+  aside .tag.cmp { background: var(--compliance); color: #155e75; }
+  aside .tag.setup { background: var(--setup); color: #166534; }
+  aside .tag.mer { background: var(--merchant); color: #92400e; }
+  aside .tag.int { background: var(--internal); color: #6b21a8; }
+  .id-box { background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 10px 12px; font-size: 12px; color: var(--ink); margin-top: 8px; }
+  .id-box code { background: #0f1b2d; color: #fff; padding: 1px 6px; border-radius: 4px; font-size: 11px; }
+  footer { text-align: center; padding: 10px; font-size: 12px; color: var(--ink-soft); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>PepaCash — Merchant Process Flow</h1>
+  <p>End-to-end journey: Website → Operations → Compliance → Account Setup → Merchant Dashboard / Mobile App ↔ Internal Dashboard</p>
+</header>
+
+<div class="container">
+
+  <!-- Diagram -->
+  <section class="card">
+    <div class="toolbar">
+      <span class="title">Process Flow Diagram</span>
+      <button onclick="zoomInBtn()">＋ Zoom in</button>
+      <button onclick="zoomOutBtn()">－ Zoom out</button>
+      <button onclick="resetView()">⟲ Fit</button>
+      <button class="primary" onclick="window.print()">⎙ Print</button>
+      <span style="font-size:11px;color:var(--ink-soft);margin-left:8px;">Tip: pinch / scroll to zoom · drag to pan · double-tap to zoom in</span>
+    </div>
+    <div id="diagram-wrap">
+      <div id="diagram" class="mermaid">
+flowchart TD
+
+  %% ====== WEBSITE ======
+  subgraph WEB["WEBSITE — Prospect"]
+    direction TB
+    W1["Visitor lands on website"] --> W2["Selects 'Become a Merchant'"]
+    W2 --> W3["Fills onboarding form<br/>• Owner KYC (Ghana Card)<br/>• Business details<br/>• If registered: company docs + Directors' IDs<br/>• PEP declaration + expected monthly amount"]
+    W3 --> W4["Submits application"]
+    W4 --> W5(["App created • Status: PENDING TRIAGE"])
+  end
+
+  %% ====== OPERATIONS — TRIAGE ======
+  subgraph OPS1["OPERATIONS DASHBOARD — Triage"]
+    direction TB
+    O1["New Applications queue"] --> O2["Team Lead assigns to Account Manager"]
+    O2 --> O3{"Account Manager<br/>reviews completeness"}
+    O3 -->|Incomplete| O4["Send change request to merchant"]
+    O3 -->|Complete| O5["Generate <b>Compliance ID</b> (CMP-XXXXXX)<br/>Forward to Compliance"]
+  end
+
+  W5 --> O1
+  O4 -. notify + portal .-> W3
+
+  %% ====== COMPLIANCE ======
+  subgraph CMP["COMPLIANCE PORTAL"]
+    direction TB
+    C1["Pending Review queue"] --> C2["Officer reviews each section:<br/>Owner KYC • Business docs • Directors • PEP • AML/Sanctions"]
+    C2 --> C3{"Final decision"}
+    C3 -->|Request Info| C4["Send notes back to Operations"]
+    C3 -->|Rejected| C5["Reject with reasons → Operations"]
+    C3 -->|Approved / Flagged| C6["Decision recorded<br/>Status: READY FOR SETUP"]
+  end
+
+  O5 --> C1
+  C4 --> O3
+  C5 --> O3
+
+  %% ====== OPERATIONS — ACCOUNT SETUP ======
+  subgraph OPS2["OPERATIONS — Business Accounts"]
+    direction TB
+    S1["Pending Setup queue"] --> S2["Account Manager generates<br/><b>Business ID</b> (BIZ-XXXXXX)"]
+    S2 --> S3["Setup: Business profile • Branches •<br/>Services • Settlement (Bank/Momo) •<br/>USSD pulled from internal pool"]
+    S3 --> S4(["Status: ACTIVE MERCHANT<br/>Mirrors to Compliance Portal"])
+  end
+
+  C6 --> S1
+
+  %% ====== CREDENTIALS ======
+  S4 --> L1["Create logins for Owner + Employees<br/>Email OR Phone → OTP"]
+
+  %% ====== MERCHANT TOUCHPOINTS ======
+  subgraph MER["MERCHANT TOUCHPOINTS"]
+    direction TB
+    M1["Merchant Dashboard (Web)"]
+    M2["Merchant Mobile App<br/>(Approved & Flagged merchants)"]
+    M1 --- M3["Transactions • Transfers (Bank / Momo / Pepapay)<br/>CRM + Loyalty • Employees & Roles<br/>Support • KYC uploads • Branches • Services • USSD"]
+    M2 --- M4["In-person payments<br/>sync to Merchant + Internal Dashboards"]
+  end
+
+  L1 --> M1
+  L1 --> M2
+
+  %% ====== INTERNAL DASHBOARD ======
+  subgraph INT["INTERNAL DASHBOARD (Ops + Support + Compliance)"]
+    direction TB
+    I0{"Type of merchant update"}
+    I0 -->|Payments / Transactions| I1["Mirror on Internal Dashboard (monitoring)"]
+    I0 -->|Support request| I2["Support team handles → reply to merchant"]
+    I0 -->|KYC upload / change| I3["Operations validates → Compliance re-reviews"]
+    I0 -->|Branch request| I4["Operations reviews & approves"]
+    I0 -->|Service added| I5["No approval — reflected on Internal Dashboard"]
+    I0 -->|USSD added| I6["Unique prefix + extension pulled from internal pool<br/>(no duplicates) — reflected internally"]
+  end
+
+  M3 --> I0
+  M4 --> I0
+  I3 -. re-enters loop .-> C1
+
+  %% ====== STYLES ======
+  classDef web fill:#eef2ff,stroke:#4f46e5,stroke-width:1px,color:#1e1b4b;
+  classDef ops fill:#fff7ed,stroke:#ea580c,stroke-width:1px,color:#7c2d12;
+  classDef cmp fill:#ecfeff,stroke:#0891b2,stroke-width:1px,color:#155e75;
+  classDef setup fill:#f0fdf4,stroke:#16a34a,stroke-width:1px,color:#14532d;
+  classDef mer fill:#fef3c7,stroke:#d97706,stroke-width:1px,color:#78350f;
+  classDef int fill:#f3e8ff,stroke:#9333ea,stroke-width:1px,color:#581c87;
+  classDef done fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#14532d,font-weight:bold;
+
+  class W1,W2,W3,W4,W5 web;
+  class O1,O2,O3,O4,O5,S1,S2,S3 ops;
+  class C1,C2,C3,C4,C5,C6 cmp;
+  class S4,L1 done;
+  class M1,M2,M3,M4 mer;
+  class I0,I1,I2,I3,I4,I5,I6 int;
+      </div>
+    </div>
+    <div class="legend">
+      <span class="chip"><span class="sw" style="background:#eef2ff;border:1px solid #4f46e5"></span> Website</span>
+      <span class="chip"><span class="sw" style="background:#fff7ed;border:1px solid #ea580c"></span> Operations Dashboard</span>
+      <span class="chip"><span class="sw" style="background:#ecfeff;border:1px solid #0891b2"></span> Compliance Portal</span>
+      <span class="chip"><span class="sw" style="background:#dcfce7;border:1px solid #16a34a"></span> Activation Milestone</span>
+      <span class="chip"><span class="sw" style="background:#fef3c7;border:1px solid #d97706"></span> Merchant Touchpoints</span>
+      <span class="chip"><span class="sw" style="background:#f3e8ff;border:1px solid #9333ea"></span> Internal Dashboard Sync</span>
+    </div>
+  </section>
+
+  <!-- Narrative -->
+  <aside>
+    <div class="card">
+      <h2>Refined Process — Summary</h2>
+      <p>The merchant journey runs through four portals — <b>Website</b>, <b>Operations Dashboard</b>, <b>Compliance Portal</b>, and the <b>Merchant Dashboard / Mobile App</b> — with a continuous read/write link to the <b>Internal Dashboard</b> for monitoring, support and downstream approvals.</p>
+
+      <h3><span class="tag">1</span> Website signup</h3>
+      <p>Prospect submits Owner KYC (Ghana Card), business details, registration docs &amp; Directors' IDs if a registered company, and a PEP declaration with expected monthly receive amount.</p>
+
+      <h3><span class="tag ops">2</span> Operations triage</h3>
+      <p>The application lands in the <b>New Applications</b> queue. The <b>Team Lead</b> assigns it to an <b>Account Manager</b>, who reviews completeness. Missing info bounces back to the merchant; complete applications are forwarded to Compliance and a <b>Compliance ID</b> is generated.</p>
+
+      <h3><span class="tag cmp">3</span> Compliance review</h3>
+      <p>Compliance reviews every section and issues one of four outcomes: <b>Approved</b>, <b>Flagged</b> (approved with monitoring), <b>Request for Info</b>, or <b>Rejected</b>. RFI and Rejected return to Operations, who re-engages the merchant. Approved/Flagged moves to <b>Pending Setup</b>.</p>
+
+      <h3><span class="tag ops">4</span> Business account setup</h3>
+      <p>Account Manager generates the <b>Business ID</b>, configures the business profile, branches, services, settlement (Bank/Momo), and assigns a <b>USSD prefix + extension</b> from the internal pool (uniqueness enforced). On completion the merchant flips to <b>Active</b> in Operations and is mirrored in the Compliance Portal's Merchants section.</p>
+
+      <h3><span class="tag mer">5</span> Merchant login &amp; live operations</h3>
+      <p>Logins are provisioned for the Owner and Employees using email or phone, authenticated by <b>OTP</b>. The Merchant Dashboard provides transactions, transfers, CRM with customer loyalty, role management, support, KYC, branches, services and USSD. The Merchant Mobile App is available to <b>Approved and Flagged</b> merchants for in-person collections.</p>
+
+      <h3><span class="tag int">6</span> Internal sync &amp; ongoing approvals</h3>
+      <ul>
+        <li><b>Payments &amp; transactions</b> — mirror to Internal Dashboard.</li>
+        <li><b>Support requests</b> — handled by internal Support; threaded back to merchant.</li>
+        <li><b>KYC changes</b> — go to Operations first, then Compliance for re-review.</li>
+        <li><b>Branch requests</b> — Operations review &amp; approve.</li>
+        <li><b>Service added</b> — no approval needed; reflected internally.</li>
+        <li><b>USSD added</b> — system assigns unique prefix + extension from the central pool.</li>
+      </ul>
+
+      <div class="id-box">
+        <b>Dual-ID rule.</b> Each merchant carries two separate identifiers that map 1:1 to the same master record.<br/>
+        <code>CMP-XXXXXX</code> — Compliance ID, minted at first compliance handoff. Lives in the Compliance Portal across the merchant's lifetime.<br/>
+        <code>BIZ-XXXXXX</code> — Business ID, minted at account setup. Used by Operations, Merchant Dashboard, Mobile App and Internal Dashboard.<br/>
+        Either ID resolves to the same merchant in every portal.
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>KYC Back-and-Forth Rule</h2>
+      <p>Any KYC change initiated by the merchant — whether during onboarding or after going live — <b>must</b> pass through the Operations Dashboard first. The Account Manager validates the submission, then forwards to Compliance for the final review and decision. Compliance never receives KYC updates directly from the merchant.</p>
+    </div>
+  </aside>
+</div>
+
+<footer>PepaCash · Internal process design · Generated 2026-05-17</footer>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: 'base',
+    themeVariables: {
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      fontSize: '13px',
+      primaryColor: '#ffffff',
+      primaryTextColor: '#0f1b2d',
+      primaryBorderColor: '#94a3b8',
+      lineColor: '#64748b',
+      tertiaryColor: '#f6f8fb'
+    },
+    flowchart: { htmlLabels: true, curve: 'basis', useMaxWidth: false, padding: 10 }
+  });
+
+  let pz = null;
+
+  async function render() {
+    const wrap = document.getElementById('diagram-wrap');
+    const el = document.getElementById('diagram');
+    const src = el.textContent;
+    el.removeAttribute('data-processed');
+    const { svg } = await mermaid.render('m1', src);
+    el.innerHTML = svg;
+    const svgEl = el.querySelector('svg');
+    if (!svgEl) return;
+
+    // Fit the SVG nicely inside the wrap on first render
+    const bbox = svgEl.getBBox ? svgEl.getBBox() : null;
+    if (bbox && bbox.width && bbox.height) {
+      svgEl.setAttribute('viewBox', `0 0 ${bbox.width} ${bbox.height}`);
+    }
+    svgEl.setAttribute('width', '100%');
+    svgEl.setAttribute('height', '100%');
+
+    // panzoom (anvaka) — supports mouse wheel, drag, pinch-to-zoom, double-tap zoom
+    pz = panzoom(el, {
+      maxZoom: 6,
+      minZoom: 0.25,
+      bounds: false,
+      smoothScroll: false,
+      zoomDoubleClickSpeed: 1.75,   // double-tap / dbl-click zoom-in
+      beforeWheel: () => false,     // allow wheel zoom anywhere on the canvas
+      filterKey: () => true         // don't hijack keyboard
+    });
+
+    // Visual feedback while panning
+    pz.on('panstart',  () => wrap.classList.add('is-panning'));
+    pz.on('panend',    () => wrap.classList.remove('is-panning'));
+
+    fitToView();
+  }
+
+  function fitToView() {
+    if (!pz) return;
+    const wrap = document.getElementById('diagram-wrap');
+    const svgEl = document.querySelector('#diagram svg');
+    if (!svgEl) return;
+    // Reset transform first
+    pz.zoomAbs(0, 0, 1);
+    pz.moveTo(0, 0);
+    // Compute fit
+    const wW = wrap.clientWidth, wH = wrap.clientHeight;
+    const sW = svgEl.getBoundingClientRect().width;
+    const sH = svgEl.getBoundingClientRect().height;
+    if (!sW || !sH) return;
+    const scale = Math.min(wW / sW, wH / sH) * 0.95;
+    const offX = (wW - sW * scale) / 2;
+    const offY = (wH - sH * scale) / 2;
+    pz.zoomAbs(0, 0, scale);
+    pz.moveTo(offX, offY);
+  }
+
+  function zoomInBtn() {
+    if (!pz) return;
+    const w = document.getElementById('diagram-wrap');
+    pz.smoothZoom(w.clientWidth / 2, w.clientHeight / 2, 1.25);
+  }
+  function zoomOutBtn() {
+    if (!pz) return;
+    const w = document.getElementById('diagram-wrap');
+    pz.smoothZoom(w.clientWidth / 2, w.clientHeight / 2, 0.8);
+  }
+  function resetView() { fitToView(); }
+
+  // Re-fit when the window resizes
+  let resizeT;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeT);
+    resizeT = setTimeout(fitToView, 150);
+  });
+
+  render();
+</script>
+
+</body>
+</html>
